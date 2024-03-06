@@ -7,7 +7,7 @@
 #
 ################################################################################
 # \copyright
-# Copyright 2023, Cypress Semiconductor Corporation (an Infineon company)
+# Copyright 2023-2024, Cypress Semiconductor Corporation (an Infineon company)
 # SPDX-License-Identifier: Apache-2.0
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -61,8 +61,8 @@ gen_key_rsa2k:
 # Python command to generate permanent and public keys for application to boot securely
 gen_key_ecc256:
 	@echo -e "\nGenerate ECC256 keys"
-	$(PYTHON_PATH) $(IMGTOOL_PATH)/imgtool.py keygen -k ../keys/$(SIGN_KEY_FILE).pem -t ecdsa-p256
-	$(PYTHON_PATH) $(IMGTOOL_PATH)/imgtool.py getpub -k ../keys/$(SIGN_KEY_FILE).pem > ../keys/$(SIGN_KEY_FILE).pub
+	$(CY_PYTHON_PATH) $(IMGTOOL_PATH)/imgtool.py keygen -k ../keys/$(SIGN_KEY_FILE).pem -t ecdsa-p256
+	$(CY_PYTHON_PATH) $(IMGTOOL_PATH)/imgtool.py getpub -k ../keys/$(SIGN_KEY_FILE).pem > ../keys/$(SIGN_KEY_FILE).pub
 
 # Python command to generate memorymap sources file from memorymap JSON file
 ifneq ($(FLASH_MAP), )
@@ -70,7 +70,7 @@ generate_flashmap_cm0p:
 	@echo -e "\n============================================================="
 	@echo -e "= Generating memorymap.h, memorymap.c and memorymap.mk ="
 	@echo -e "============================================================="
-	$(PYTHON_PATH) ../scripts/memorymap_rework.py run -p ../flashmap/xmc7200_platform.json -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
+	$(CY_PYTHON_PATH) ../scripts/memorymap_rework.py run -p ../flashmap/xmc7200_platform.json -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
 	@echo -e "=============================================================\n"
 
 -include ./memorymap.mk

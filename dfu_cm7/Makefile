@@ -7,7 +7,7 @@
 #
 ################################################################################
 # \copyright
-# Copyright 2023, Cypress Semiconductor Corporation (an Infineon company)
+# Copyright 2023-2024, Cypress Semiconductor Corporation (an Infineon company)
 # SPDX-License-Identifier: Apache-2.0
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -74,7 +74,7 @@ generate_flashmap_cm7:
 	@echo -e "\n============================================================="
 	@echo -e "= Generating memorymap.h, memorymap.c and memorymap.mk ="
 	@echo -e "============================================================="
-	$(PYTHON_PATH) ../scripts/memorymap_rework.py run -p ../flashmap/xmc7200_platform.json -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
+	$(CY_PYTHON_PATH) ../scripts/memorymap_rework.py run -p ../flashmap/xmc7200_platform.json -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
 	@echo -e "=============================================================\n"
 
 -include ./memorymap.mk

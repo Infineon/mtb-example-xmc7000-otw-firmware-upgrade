@@ -7,7 +7,7 @@
 #
 ################################################################################
 # \copyright
-# Copyright 2023, Cypress Semiconductor Corporation (an Infineon company)
+# Copyright 2023-2024, Cypress Semiconductor Corporation (an Infineon company)
 # SPDX-License-Identifier: Apache-2.0
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -52,13 +52,8 @@ TOOLCHAIN=GCC_ARM
 # for your IDE.
 CONFIG=Debug
 
-# minimum Python 3.7 is required
 # Python path definition
-ifeq ($(OS),Windows_NT)
-PYTHON_PATH?=python
-else
-PYTHON_PATH?=python3
-endif
+CY_PYTHON_REQUIREMENT=true
 
 ################################################################################
 # Condition to check the compiler

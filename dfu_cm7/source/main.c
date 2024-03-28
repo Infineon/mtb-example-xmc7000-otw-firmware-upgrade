@@ -150,7 +150,8 @@ int main(void) {
     /* Buffer for DFU data packets for transport API */
     CY_ALIGN(4) static uint8_t packet[CY_DFU_SIZEOF_CMD_BUFFER];
 
-    /* Disable watchdog timer to mark successful start up of application. */
+    /* Update watchdog timer to mark successful start up of application */
+    /* Disabling the Watchdog timer started by the bootloader */
     cyhal_wdt_free(NULL);
 
     /* Initialize the device and board peripherals */
@@ -188,7 +189,7 @@ int main(void) {
 
 /* After a successful swap-based upgrade*/
 #if !(SWAP_DISABLED) && defined(UPGRADE_IMAGE)
-    int img_ok_status = -1;
+    int img_ok_status = IMG_OK_SET_FAILED;
     uint8_t response;
 
     if (*((uint8_t*) IMG_OK_ADDR) != USER_SWAP_IMAGE_OK) {

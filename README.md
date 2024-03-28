@@ -25,19 +25,18 @@ This example demonstrates a firmware upgrade for the XMC7000 using the edge prot
 
    - **UPGRADE mode:** The application image is built to be programmed into the secondary slot. Based on user input, the bootloader will copy the image into the primary slot and boot it on the next reset.
 
-[View this README on GitHub.](https://github.com/Infineon/mtb-example-xmc7000-multicore-empty-app)
+[View this README on GitHub.](https://github.com/Infineon/mtb-example-xmc7000-otw-firmware-upgrade)
 
-[Provide feedback on this code example.](https://cypress.co1.qualtrics.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyMzUzMjgiLCJTcGVjIE51bWJlciI6IjAwMi0zNTMyOCIsIkRvYyBUaXRsZSI6IlhNQzcwMDA6IE11bHRpLWNvcmUgYXBwbGljYXRpb24gdGVtcGxhdGUiLCJyaWQiOiJtaXFpIiwiRG9jIHZlcnNpb24iOiIxLjAuMCIsIkRvYyBMYW5ndWFnZSI6IkVuZ2xpc2giLCJEb2MgRGl2aXNpb24iOiJNQ0QiLCJEb2MgQlUiOiJJQ1ciLCJEb2MgRmFtaWx5IjoiUFNPQyJ9)
+[Provide feedback on this code example.](https://cypress.co1.qualtrics.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyMzc5NDMiLCJTcGVjIE51bWJlciI6IjAwMi0zNzk0MyIsIkRvYyBUaXRsZSI6IlhNQzcwMDA6IE9UVyBmaXJtd2FyZSB1cGdyYWRlIiwicmlkIjoic3JkcyIsIkRvYyB2ZXJzaW9uIjoiMi4wLjAiLCJEb2MgTGFuZ3VhZ2UiOiJFbmdsaXNoIiwiRG9jIERpdmlzaW9uIjoiTUNEIiwiRG9jIEJVIjoiSUNXIiwiRG9jIEZhbWlseSI6IlBTT0MifQ==)
 
 ## Requirements
 
 - [ModusToolbox&trade;](https://www.infineon.com/modustoolbox) v3.1 or later (tested with v3.2)
 - Programming language: C
 - Associated parts: [XMC7000 MCU](https://www.infineon.com/cms/en/product/microcontroller/32-bit-industrial-microcontroller-based-on-arm-cortex-m/)
-- [CySecureTools](https://pypi.org/project/cysecuretools/): v4.1.0
+- [CySecureTools](https://pypi.org/project/cysecuretools/): v5.0.0
 - Other tools: Python v3.8.10 or later
-- BSP version: 1.2.0
-
+- BSP version: 2.x
 
 ## Supported toolchains (make variable 'TOOLCHAIN')
 
@@ -46,17 +45,18 @@ This example demonstrates a firmware upgrade for the XMC7000 using the edge prot
 
 ## Supported kits (make variable 'TARGET')
 
-- [XMC7200 Evaluation Kit](https://www.infineon.com/KIT_XMC72_EVK) (`KIT_XMC72_EVK`) - Default value of `TARGET`
+- [XMC7200 Evaluation Kit](https://www.infineon.com/KIT_XMC72_EVK) (`KIT_XMC72_EVK`, `KIT_XMC72_EVK_MUR_43439M2`) - Default value of `TARGET`
+- [XMC7100 Evaluation Kit](https://www.infineon.com/KIT_XMC71_EVK_LITE_V1) (`KIT_XMC71_EVK_LITE_V1`)
 
 
 ## Hardware setup
-- KIT_XMC72_EVK
+- XMC7000
     - UART (KitProg3): To get the debug log messages
     - I2C (KitProg3): For DFU transport
 - [MiniProg4](https://www.infineon.com/cms/en/product/evaluation-boards/cy8ckit-005)
   - UART/SPI: For DFU transport
 
-This example uses KIT_XMC72_EVK's default configuration. See the kit user guide to ensure that the board is configured correctly.
+This example uses kit's default configuration. See the kit user guide to ensure that the board is configured correctly.
 
 
 ## Software setup
@@ -222,7 +222,7 @@ This example bundles two applications: the bootloader application run by the CM0
       
       To change the mode to a normal protection state, set the `USE_SECURE_MODE_FOR_MCUBOOT` variable to '0' in the *\<application>/user_config.mk* file.
 
-     From the terminal, go to *\_<application>/bootloader_cm0p_* and execute the `make program_proj -j8` command to build and program the bootloader application.
+     From the terminal, go to *\<application>/bootloader_cm0p* and execute the `make program_proj -j8` command to build and program the bootloader application.
 
       Example:
       ```
@@ -241,7 +241,7 @@ This example bundles two applications: the bootloader application run by the CM0
    
    To change the default DFU transport configurations according to the use case, see [DFU transport configurations](#dfu-transport-configurations).
 
-     From the terminal, go to _<application>/dfu_cm7_ and  execute the `make program_proj -j8` command to build and program the application using the default DFU transport. You can specify a transport manually:
+     From the terminal, go to *\<application>/dfu_cm7* and  execute the `make program_proj -j8` command to build and program the application using the default DFU transport. You can specify a transport manually:
       ```
       make program_proj -j8 SELECTED_TRANSPORT=<DFU_TRANSPORT>
       ```
@@ -278,7 +278,7 @@ This example bundles two applications: the bootloader application run by the CM0
 
    <details><summary><b>Using CLI</b></summary>
 
-     From the terminal, go to _<application>_ and execute the `make program_proj -j8` command to build and program the application using the default DFU transport. You can specify a transport manually:
+     From the terminal, go to *\<application>* and execute the `make program_proj -j8` command to build and program the application using the default DFU transport. You can specify a transport manually:
       ```
       make program -j8 SELECTED_TRANSPORT=<DFU_TRANSPORT>
       ```
@@ -309,7 +309,7 @@ This example bundles two applications: the bootloader application run by the CM0
 
    <details open><summary><b>Using CLI</b></summary>
 
-      From the terminal, go to _<application>/dfu_cm7_ directory and execute the following command to build the application using the default toolchain to the default target:
+      From the terminal, go to *\<application>/dfu_cm7* directory and execute the following command to build the application using the default toolchain to the default target:
 
       ```
       make build_proj -j8 IMG_TYPE=UPGRADE
@@ -320,7 +320,7 @@ This example bundles two applications: the bootloader application run by the CM0
 
       1. Open the [DFU host tool](https://www.infineon.com/dgdl/Infineon-ModusToolbox_DFU_Host_Tool_1.60_User_Guide-UserManual-v01_00-EN.pdf?fileId=8ac78c8c8386267f0183a95733d6596e). Connect to the board using the transport configured.
    
-      2. Select *dfu_cm7.hex*. By default, it is generated in the *\<application>/<dfu_app_cm7>/build/APP_KIT_XMC72_EVK/Debug/build* directory on a successful build.
+      2. Select *dfu_cm7.hex*. By default, it is generated in the *\<application>/dfu_cm7/build/UPGRADE/\<TARGET>/\<CONFIG>* directory on a successful build.
    
       3. Select an appropriate port based on the transport (`SELECTED_TRANSPORT`) configured in the DFU application. I2C is the default transport configuration. Select **400 kHz** speed, set the address to **12**, and then click **Program**.
    
@@ -352,8 +352,22 @@ This example bundles two applications: the bootloader application run by the CM0
 
        ![](images/booting_the_dfu_app_in_the_upgrade_mode_after_successful_swap_operation_with_response_no.png)
 
-         > **IMPORTANT:** Once the secure protection state is implemented on the device, the device will boot only the secure image. If you want to switch to the normal protection state, erase the TOC2 structure and public key content on the flash. For erasing, run [OpenOCD script](#openocd-script) on the device and set the variable `USE_SECURE_MODE_FOR_MCUBOOT` to '0' in the *\<application>/user_config.mk* file, and then build and program the edge protect bootloader on the device.
 
+> **IMPORTANT:** Once the secure protection state is implemented on the device, the device will boot only the secure image. If you want to switch to the normal protection state, erase the TOC2 structure and public key content on the flash. For erasing, run [OpenOCD script](#openocd-script) on the device and set the variable `USE_SECURE_MODE_FOR_MCUBOOT` to '0' in the *\<application>/user_config.mk* file, and then build and program the edge protect bootloader on the device.
+
+> **NOTE:** You can build the combined image for bootloader and dfu applications using the `make build` CLI command in the *\<application>* directory but during the linking stage there might be an error stating multiple definitions of symbols for dfu application for `BOOT` and `UPGRADE` image. Currently, the solution to the problem has been addressed in the following code section of the *\<application>/dfu_cm7/Makefile* which ignores the build artifacts of the other `IMG_TYPE`. Ex: If `BOOT` is selected as `IMG_TYPE` then *\<application>/dfu_cm7/build/UPGRADE* build directory artifacts will be ignored during the compilation and linking of the `BOOT` image.
+
+      ```
+      ifeq ($(IMG_TYPE), BOOT)
+      CY_IGNORE+=build/UPGRADE
+      else
+      ifeq ($(IMG_TYPE), UPGRADE)
+      CY_IGNORE+=build/BOOT
+      endif
+      endif
+      ```
+
+For programming the individual builds of the bootloader and dfu applications, use the `make program_proj` CLI command as shown in the preceding steps.
 
 ## Debugging
 
@@ -408,7 +422,7 @@ Typically, a bootloader application executes in secured mode and is privileged t
 
 MCUboot always boots from the primary slot and copies the image from the secondary slot into the primary slot when an upgrade is requested. The upgrade can be either overwrite-based or swap-based. In an overwrite-based upgrade, the image in the primary slot is lost and there is no way to roll back, if the new image has an issue. In a swap-based upgrade, the images are swapped between the two slots, and rollback is possible. In this case, MCUboot makes use of an additional area in the flash called the *scratch area* for reliable swapping. MCUboot for the XMC7000 supports both swap-based and overwrite-based upgrades.
 
-For a swap-based upgrade, each image slot contains the metadata used by MCUboot to determine the current state and actions to take during the current boot operation. In case of an upgrade image, the `img_ok` field is updated by the application to make the current image permanent in the primary slot. See the [image trailer](https://github.com/mcu-tools/mcuboot/blob/v1.9.0-cypress/docs/design.md#image-trailer) for more details.
+For a swap-based upgrade, each image slot contains the metadata used by MCUboot to determine the current state and actions to take during the current boot operation. In case of an upgrade image, the `img_ok` field is updated by the application to make the current image permanent in the primary slot. See the [image trailer](https://github.com/mcu-tools/mcuboot/blob/v1.9.1-cypress/docs/design.md#image-trailer) for more details.
 
 MCUboot implements reset recovery and resumes the copy operation if a reset or power failure occurs during the operation. **Figure 2** shows the execution flow of the edge protect bootloader application.
 
@@ -424,7 +438,7 @@ There are two types of upgrade processes supported by the XMC7000 device.
 - For an overwrite-based upgrade, the secondary image is simply copied to the primary slot after successful validation. There is no way to revert the upgrade if the secondary image is inoperable.
 - For a swap-based upgrade, images in the primary and secondary slots are swapped. The upgrade can be reverted if the secondary image does not confirm its operation.
 
-See the "Swap status partition description" section of the [MCUbootApp documentation](https://github.com/mcu-tools/mcuboot/blob/v1.9.0-cypress/boot/cypress/MCUBootApp/MCUBootApp.md) and [MCUboot design](https://github.com/mcu-tools/mcuboot/blob/v1.9.0-cypress/docs/design.md) documentation for more details.
+See the "Swap status partition description" section of the [MCUbootApp documentation](https://github.com/mcu-tools/mcuboot/blob/v1.9.1-cypress/boot/cypress/MCUBootApp/MCUBootApp.md) and [MCUboot design](https://github.com/mcu-tools/mcuboot/blob/v1.9.1-cypress/docs/design.md) documentation for more details.
 
 
 ### DFU application flow
@@ -487,30 +501,24 @@ To change the default configuration, edit the *\<application>/dfu_cm7/imports/df
 
 #### Hardware configuration
 
-Connect the RX and TX pins of MiniProg4 to P0_1 and P0_0 on the board respectively. Also, connect the VTARG and GND of MiniProg4 to 3.3 V and GND on the board respectively.
+Connect the RX and TX pins of MiniProg4 to P20_4 and P20_3 on the board respectively. Also, connect the VTARG and GND of MiniProg4 to 3.3 V and GND on the board respectively.
 
 #### Software configuration
 
-1. Open the *\<application>/dfu_cm7/imports/dfu/config/COMPONENT_CAT1/COMPONENT_DFU_UART/transport_uart.c* file and change the argument object name to `&uart_obj` in the `cyhal_uart_set_baud` function as shown below.
-
-   ```
-   cyhal_uart_set_baud(&uart_obj, DFU_UART_BAUD, NULL);
-   ```
-   > **IMPORTANT**: To change the default baud rate, make sure you make the above changes. Otherwise, it will cause an error while building. This will be resolved in the future version of the DFU middleware. 
-
-2. To change the default configuration, edit the *\<application>/dfu_cm7/imports/dfu/config/COMPONENT_CAT1/COMPONENT_DFU_UART/transport_uart.c* file according to the use case.
-
+To change the default configuration, edit the *\<application>/dfu_cm7/imports/dfu/config/COMPONENT_CAT1/COMPONENT_DFU_UART/transport_uart.c* file according to the use case.
 
 #### How to change the configuration for DFU SPI transport
 
 #### Hardware configuration
 
-Connect the MISO, MOSI, CLK and CS pins of MiniProg4 to P10_0, P10_1, P10_2 and P10_3 on the board respectively. And also connect the VTARG and GND of MiniProg4 to 3.3 V and GND on the board respectively.
+For XMC7200 kit, Connect the MISO, MOSI, CLK and CS pins of MiniProg4 to P10_0, P10_1, P10_2 and P10_3 on the board respectively. And also connect the VTARG and GND of MiniProg4 to 3.3 V and GND on the board respectively.
+
+For XMC7100 kit, Connect the MISO, MOSI, CLK and CS pins of MiniProg4 to P13_0, P13_1, P13_2 and P13_3 on the board respectively. And also connect the VTARG and GND of MiniProg4 to 3.3 V and GND on the board respectively.
 
 
 #### Software configuration
 
-To change the default configuration, edit the *\<application>/dfu_cm7/imports/dfu/config/COMPONENT_CAT1/COMPONENT_DFU_SPI/transport_spi.c* file according to the use case. 
+To change the default configuration, edit the *\<application>/dfu_cm7/imports/dfu/config/COMPONENT_CAT1/COMPONENT_DFU_SPI/transport_spi.c* file according to the use case.
 
 
 ## Memory map/partition
@@ -537,9 +545,9 @@ Following images illustrate the memory maps provided in this code example. The f
 
 A memory map, for example, is selected by changing the value of the `FLASH_MAP` variable in the *\<application>/user_config.mk* file to the desired JSON file name.
 
-See the [How to modify memory map](https://github.com/mcu-tools/mcuboot/blob/v1.9.0-cypress/boot/cypress/MCUBootApp/MCUBootApp.md#how-to-modify-flash-map) section to understand how to customize the memory map to the use case.
+See the [How to modify memory map](https://github.com/mcu-tools/mcuboot/blob/v1.9.1-cypress/boot/cypress/MCUBootApp/MCUBootApp.md#how-to-modify-flash-map) section to understand how to customize the memory map to the use case.
 
-During the pre-build stage, the memorymap JSON file is automatically parsed by the *\<application>/scripts/memorymap_rework.py* Python script to generate the following files:
+During the pre-build stage, the memorymap JSON file is automatically parsed by the *\<application>/scripts/memorymap_xmc7000.py* Python script to generate the following files:
 
 1. *memorymap.mk*, *memorymap.c*, and *memorymap.h* files in the bootloader application.
 2. *memorymap.mk*, *memorymap.c*, and *memorymap.h* files in the DFU application.
@@ -577,7 +585,7 @@ These variables are common to both the bootloader and DFU applications, its conf
  `BOOTLOADER_APP_RAM_SIZE`   | 0x20000              | RAM size of the bootloader application run by CM0+. <br>In the linker script for the bootloader application (CM0+), the `LENGTH` of the `cm0_ram` region is set to this value.<br/>In the linker script for the DFU application (CM7), the `ORIGIN` of the `ram` region is offset to this value, and the `LENGTH` of the `ram` region is calculated based on this value.
   `USER_APP_RAM_SIZE`   | 0x60000            | RAM size of the user application run by CM7. <br>In the linker script for the DFU application (CM7), the `LENGTH` of the `ram` region is set to this value.
  `SLOT_SIZE`                 | Autogenerated       | Size of the primary slot and secondary slot. i.e., the flash size of the DFU application run by CM7. 
- `BOOT_HEADER_SIZE`       | 0x400                | Size of the MCUboot header. Must be a multiple of 1024 (see the following note).<br>Used in the following places:<br>1. In the linker script for the DFU application (CM7), the starting address of the `.text` section is offset by the MCUboot header size from the `ORIGIN` of the `flash` region. This is to leave space for the header that the *imgtool* inserts later during the post-build steps. <br>2. Passed to the *imgtool* while signing the image. The *imgtool* fills the space of this size with 0xFF (depending on internal or external flash) and then adds the actual header from the beginning of the image.
+ `MCUBOOT_HEADER_SIZE`       | 0x400                | Size of the MCUboot header. Must be a multiple of 1024 (see the following note).<br>Used in the following places:<br>1. In the linker script for the DFU application (CM7), the starting address of the `.text` section is offset by the MCUboot header size from the `ORIGIN` of the `flash` region. This is to leave space for the header that the *imgtool* inserts later during the post-build steps. <br>2. Passed to the *imgtool* while signing the image. The *imgtool* fills the space of this size with 0xFF (depending on internal or external flash) and then adds the actual header from the beginning of the image.
  `MAX_IMG_SECTORS`           | Autogenerated       | Maximum number of flash sectors (or rows) per image slot for which swap status is tracked in the image trailer.  
  `MCUBOOT_IMAGE_NUMBER`      | Autogenerated       | The number of images supported in the case of multi-image bootloading. Multi-image bootloading is not supported at the moment for XMC7000.
  `PRIMARY_IMG_START`         | Autogenerated       | Starting address of primary slot.
@@ -586,7 +594,7 @@ These variables are common to both the bootloader and DFU applications, its conf
 
 <br>
 
-> **Note:** The value of `BOOT_HEADER_SIZE` must be a multiple of 1024 because the CM7 image begins immediately after the MCUboot header and it begins with the interrupt vector table. For the XMC7000 device, the starting address of the interrupt vector table must be 1024-bytes aligned.
+> **Note:** The value of `MCUBOOT_HEADER_SIZE` must be a multiple of 1024 because the CM7 image begins immediately after the MCUboot header and it begins with the interrupt vector table. For the XMC7000 device, the starting address of the interrupt vector table must be 1024-bytes aligned.
 
 `Number of bytes to be aligned to = Number of interrupt vectors x 4 bytes`
 
@@ -618,7 +626,7 @@ These variables are configured via *\<application>/user_config.mk*.
  -------------- | -----------------| -------------
  `IMG_TYPE`        | BOOT   | Valid values: `BOOT`, `UPGRADE`<br>**BOOT:** Use when the image is built for the primary slot. The `--pad` argument is not passed to the *imgtool*. <br/>**UPGRADE:** Use when the image is built for the secondary slot.  The `--pad` argument is passed to the *imgtool*.<br>Also, the DFU application defines different user LED toggles depending on whether the image is BOOT type or UPGRADE type.
  `SELECTED_TRANSPORT`        | I2C   | Valid values: I2C, UART, SPI<br>The DFU supports I2C, UART and SPI interfaces for communicating with the DFU host tool. These DFU transport can be changed according to the use case.
- `HEADER_OFFSET`   | Autogenerated | <br>if the image is **BOOT**, it will set the value as a `PRIMARY_IMG_START`and if the image is **UPGRADE**, it will set the value as a `SECONDARY_IMG_START`.
+ `HEX_START_ADDR`   | Autogenerated | <br>if the image is **BOOT**, it will set the value as a `PRIMARY_IMG_START`and if the image is **UPGRADE**, it will set the value as a `SECONDARY_IMG_START`.
  `APP_VERSION_MAJOR`<br>`APP_VERSION_MINOR`<br>`APP_VERSION_BUILD` | 1.0.0 if `IMG_TYPE=BOOT`<br>2.0.0 if `IMG_TYPE=UPGRADE` | Passed to the *imgtool* with the `-v` option in *MAJOR.MINOR.BUILD* format, while signing the image. Also available as macros to the application with the same names. <br> **Note:** These variables are configured via *dfu_cm7/Makefile.mk*.
 
 <br>
@@ -658,7 +666,7 @@ Edge protect bootloader checks the image integrity with SHA256, and image authen
 
 MCUboot verifies the signature of the image in the primary slot before booting every time `MCUBOOT_VALIDATE_PRIMARY_SLOT` is defined. it also verifies the signature of the image in the secondary slot before copying it to the primary slot.
 
-The bootloader application enables image authentication by uncommenting the following lines in the *<application>/bootloader_cm0p/libs/mcuboot/boot/cypress/MCUbootApp/config/mcuboot_config/mcuboot_config.h* file:
+The bootloader application enables image authentication by uncommenting the following lines in the *\<application>/bootloader_cm0p/libs/mcuboot/boot/cypress/MCUbootApp/config/mcuboot_config/mcuboot_config.h* file:
 
 ```
 #define MCUBOOT_SIGN_EC256
@@ -682,7 +690,7 @@ Use CySecureTools to generate the keys.
 1. Generate the permanent and public keys:
 
    ```
-   cysecuretools -t XMC7200 create-key --key-type RSA2048 -o $(<application>)/keys/cypress-test-rsa2k.pem $(<application>)/keys/$cypress-test-rsa2k.pub --format PEM 
+   cysecuretools -t $(PLATFORM) create-key --key-type RSA2048 -o $(<application>)/keys/cypress-test-rsa2k.pem $(<application>)/keys/cypress-test-rsa2k.pub --format PEM 
 
    ```
 
@@ -735,7 +743,7 @@ $(MAKE) gen_cy_si_key_source_file;
 
 To erase the TOC2 structure and public key content on the flash, run the following OpenOCD script on the device:
 
-Copy the content below and create a file named *xmc7200_flash_erase.cfg* in the *C:/Users/ModusToolbox/tools_3.1/openocd/bin/scripts/interface* directory. Open the command prompt in the *C:/Users/ModusToolbox/tools_3.1/openocd/bin* directory and run the command `openocd -s ../scripts -f interface/xmc7200_flash_erase.cfg`.
+Create a file named *xmc7000_flash_erase.cfg* in the *C:/Users/ModusToolbox/tools_\<version>/openocd/scripts/interface* directory and copy the below content to the *xmc7000_flash_erase.cfg* file. Open the command prompt in the *C:/Users/ModusToolbox/tools_\<version>/openocd/bin* directory and run the command `openocd -s ../scripts -f ../scripts/interface/xmc7000_flash_erase.cfg`.
 
 ```
 source [find interface/kitprog3.cfg]
@@ -791,11 +799,9 @@ The DFU image will be digitally signed by cypress-test-ec-p256 key.
 
 > **Note:** Edge protect bootloader checks the image integrity with SHA256, and image authenticity with EC256 digital signature verification.
 
-> **Notes:**
-
-   1. Both the bootloader and DFU applications redirect the log to the serial port (UART). Both apps use the same RX/TX pins and the retarget-io driver to communicate with the USB-to-UART bridge provided by KitProg3. The bootloader application runs first, initializes the retarget-io driver, prints the messages, deinitialize retarget-io, and then boots the DFU application and enters deep sleep mode. Then the DFU application initializes the same retarget-io driver, prints messages, deinitializes retarget-io, and soft-resets the device. That is no issue since the log does not print on both the cores at the same time.
-
-   2. Currently, the CM0+ core supports only the PDL flash (API) driver. The edge protect bootloader application uses the PDL flash (API) driver.
+### Design notes
+1. Both the bootloader and DFU applications redirect the log to the serial port (UART). Both apps use the same RX/TX pins and the retarget-io driver to communicate with the USB-to-UART bridge provided by KitProg3. The bootloader application runs first, initializes the retarget-io driver, prints the messages, deinitialize retarget-io, and then boots the DFU application and enters deep sleep mode. Then the DFU application initializes the same retarget-io driver, prints messages, deinitializes retarget-io, and soft-resets the device. That is no issue since the log does not print on both the cores at the same time.
+2. Currently, the CM0+ core supports only the PDL flash (API) driver. The edge protect bootloader application uses the PDL flash (API) driver.
 
 
 ### Code example design
@@ -814,7 +820,6 @@ This application has a different folder structure because it contains the firmwa
         |-- deps/                   # Contains application dependence middleware links
         |-- source/                 # Contains source file
         |-- Makefile                # Top-level cm0p application Makefile
-        |-- bootloader_libs.mk      # Configuration file for adding MCUBOOT middleware source files
     |-- dfu_cm7/                    # CM7 application folder
         |-- deps/                   # Contains application dependence middleware links
         |-- source/                 # Contains source files
@@ -823,6 +828,7 @@ This application has a different folder structure because it contains the firmwa
     |-- keys/                       # Contains keys for bootloader and user application authentication
     |-- scripts/                    # Contains script to generate the memorymap source files and Makefile
     |-- templates/                  # Contains modified linker script for our project
+    |-- common_libs.mk              # including the MCUBOOT middleware source and header files
     |-- common.mk                   # Common Makefile
     |-- common_app.mk               # Common application Makefile
     |-- Makefile                    # Top-level application Makefile
@@ -881,6 +887,7 @@ Document title: *CE237943* – *XMC7000: OTW firmware upgrade*
  ------- | ---------------------
  1.0.0   | New code example
  1.1.0   | Updated to support ModusToolbox&trade; v3.2
+ 2.0.0   | Updated to support MCUboot middleware v1.9.1 <br> Added support for KIT_XMC72_EVK_MUR_43439M2 and KIT_XMC71_EVK_LITE_V1 kits
 
 <br>
 

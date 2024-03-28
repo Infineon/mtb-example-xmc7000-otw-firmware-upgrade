@@ -23,8 +23,8 @@
 # limitations under the License.
 ################################################################################
 
-# Include the common make files
-include ../common.mk
+# Include the user configuration make file
+include ../user_config.mk
 
 ################################################################################
 # Basic Configuration
@@ -43,20 +43,17 @@ VERBOSE=
 # MCUboot Specific Configuration
 ###############################################################################
 
-# Include the application user config make files 
-include ../user_config.mk
-
 .PHONY: gen_cy_si_key_source_file gen_key_rsa2k gen_key_ecc256 generate_flashmap_cm0p
 
 # Command to generate `cy_si_key.c` file
 gen_cy_si_key_source_file:
 	@echo -e "\nGenerate cy_si_key.c file"
-	cysecuretools convert-key -k ../keys/$(SECURE_MODE_KEY_FILE).pub -o $(MCUBOOT_CY_PATH)/platforms/utils/$(FAMILY)/cy_si_key.c --fmt secure_boot --endian little
+	$(CY_PYTHON_PATH) -m cysecuretools convert-key -k ../keys/$(SECURE_MODE_KEY_FILE).pub -o $(MCUBOOT_CY_PATH)/platforms/utils/$(FAMILY)/cy_si_key.c --fmt secure_boot --endian little
 	
 # Command to generate permanent and public keys for bootloader to boot securely
 gen_key_rsa2k:
 	@echo -e "\nGenerate RSA2048 keys"
-	cysecuretools -t $(PLATFORM) create-key --key-type $(SECURE_MODE_KEY_TYPE) -o ../keys/$(SECURE_MODE_KEY_FILE).pem ../keys/$(SECURE_MODE_KEY_FILE).pub --format PEM
+	$(CY_PYTHON_PATH) -m cysecuretools -t $(PLATFORM) create-key --key-type $(SECURE_MODE_KEY_TYPE) -o ../keys/$(SECURE_MODE_KEY_FILE).pem ../keys/$(SECURE_MODE_KEY_FILE).pub --format PEM
 
 # Python command to generate permanent and public keys for application to boot securely
 gen_key_ecc256:
@@ -70,18 +67,86 @@ generate_flashmap_cm0p:
 	@echo -e "\n============================================================="
 	@echo -e "= Generating memorymap.h, memorymap.c and memorymap.mk ="
 	@echo -e "============================================================="
-	$(CY_PYTHON_PATH) ../scripts/memorymap_rework.py run -p ../flashmap/xmc7200_platform.json -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
+	$(CY_PYTHON_PATH) ../scripts/memorymap_xmc7000.py run -p ../flashmap/$(PLATFORM_CONFIG) -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
 	@echo -e "=============================================================\n"
 
 -include ./memorymap.mk
 DEFINES+=CY_FLASH_MAP_JSON
 endif
 
+# Include the common library make file
+include ../common_libs.mk
+
 # Can be set at `MCUBOOT_LOG_LEVEL_DEBUG` to enable the verbose output of MCUBootApp.
 MCUBOOT_LOG_LEVEL?=MCUBOOT_LOG_LEVEL_DEBUG
 USE_SHARED_SLOT?=0
 FIH_PROFILE_LEVEL_LIST:=OFF LOW MEDIUM HIGH
 FIH_PROFILE_LEVEL?=MEDIUM
+
+# Check FIH profile param
+ifneq ($(filter $(FIH_PROFILE_LEVEL), $(FIH_PROFILE_LEVEL_LIST)),)
+ifneq ($(FIH_PROFILE_LEVEL), OFF)
+DEFINES+=MCUBOOT_FIH_PROFILE_ON
+DEFINES+=MCUBOOT_FIH_PROFILE_$(FIH_PROFILE_LEVEL)
+endif
+else
+$(error Wrong FIH_PROFILE_LEVEL param)
+endif
+
+# use USE_OVERWRITE = 1 for overwrite only mode
+# use USE_OVERWRITE = 0 for swap upgrade mode
+ifeq ($(USE_OVERWRITE), )
+USE_OVERWRITE?=$(PLATFORM_DEFAULT_USE_OVERWRITE)
+endif
+
+# 1. Add defines to enable image overwrite operation
+# 2. To enable downgrade prevention
+# 3. To enable bootstarp
+ifeq ($(USE_OVERWRITE), 1)
+DEFINES+=MCUBOOT_OVERWRITE_ONLY
+ifeq ($(USE_SW_DOWNGRADE_PREV), 1)
+DEFINES+=MCUBOOT_DOWNGRADE_PREVENTION
+endif
+else
+ifeq ($(USE_BOOTSTRAP), 1)
+DEFINES+=MCUBOOT_BOOTSTRAP
+endif
+endif
+
+# Below flag is automatically set/unset by memorymap.mk.
+ifeq ($(USE_HW_ROLLBACK_PROT), 1)
+DEFINES+=MCUBOOT_HW_ROLLBACK_PROT
+endif
+
+# Below flag is automatically set/unset by memorymap.mk.
+ifeq ($(USE_MEASURED_BOOT), 1)
+DEFINES+=MCUBOOT_MEASURED_BOOT
+DEFINES+=MAX_BOOT_RECORD_SZ=512
+DEFINES+=MCUBOOT_SHARED_DATA_BASE=0x08000800
+DEFINES+=MCUBOOT_SHARED_DATA_SIZE=0x200
+endif
+
+# Below flag is automatically set/unset by memorymap.mk.
+ifeq ($(USE_DATA_SHARING), 1)
+DEFINES+=MCUBOOT_DATA_SHARING
+DEFINES+=MAX_BOOT_RECORD_SZ=512
+DEFINES+=MCUBOOT_SHARED_DATA_BASE=0x08000800
+DEFINES+=MCUBOOT_SHARED_DATA_SIZE=0x200
+endif
+
+################################################################################
+# MBEDTLS Files
+################################################################################
+
+MBEDTLS_PATH=$(MCUBOOT_PATH)/ext/mbedtls
+
+SOURCES+=$(wildcard $(MBEDTLS_PATH)/library/*.c)
+
+INCLUDES+=\
+     $(MBEDTLS_PATH)/include\
+     $(MBEDTLS_PATH)/include/mbedtls\
+     $(MBEDTLS_PATH)/include/psa\
+     $(MBEDTLS_PATH)/library
 
 ################################################################################
 # Advanced Configuration
@@ -99,80 +164,47 @@ FIH_PROFILE_LEVEL?=MEDIUM
 COMPONENTS=
 
 # Like COMPONENTS, but disable optional code that was enabled by default.
-DISABLE_COMPONENTS+=XMC7xDUAL_CM0P_SLEEP
+DISABLE_COMPONENTS=XMC7xDUAL_CM0P_SLEEP XMC7x_CM0P_SLEEP
 
 # Set this application to run at the CM0+
 CORE=CM0P
 CORE_NAME=CM0P_0
 
+SOURCES+=\
+    $(wildcard $(MCUBOOT_PATH)/boot/bootutil/src/*.c)\
+    $(MCUBOOTAPP_PATH)/keys.c
+
+INCLUDES+=\
+    $(MCUBOOT_PATH)/boot/bootutil/include/bootutil/crypto\
+    $(MCUBOOTAPP_PATH)/os
+
+# To set the protection state as a secure and to prepare a secure MCUBoot based bootloader image
+ifeq ($(USE_SECURE_MODE_FOR_MCUBOOT), 1)
+SOURCES+=\
+     $(MCUBOOT_CY_PATH)/platforms/utils/$(FAMILY)/cy_si_config.c\
+     $(MCUBOOT_CY_PATH)/platforms/utils/$(FAMILY)/cy_si_key.c
+endif
+
 # The following defines describe the flash map used by MCUBoot
-DEFINES+=CY_BOOT_BOOTLOADER_SIZE=$(BOOTLOADER_SIZE)
+DEFINES+=CY_BOOT_BOOTLOADER_SIZE=$(BOOTLOADER_SIZE)\
+         CY_BOOT_SCRATCH_SIZE=$(MCUBOOT_SCRATCH_SIZE)\
+         MCUBOOT_LOG_LEVEL=$(MCUBOOT_LOG_LEVEL)
 
 # The following defines used by MCUBoot
-DEFINES+=MBEDTLS_CONFIG_FILE='"mcuboot_crypto_config.h"' \
-		 ECC256_KEY_FILE='"$(SIGN_KEY_FILE).pub"' \
-		 MCUBOOT_IMAGE_NUMBER=$(MCUBOOT_IMAGE_NUMBER) \
-		 USE_SHARED_SLOT=$(USE_SHARED_SLOT) \
-		 MCUBOOT_PLATFORM_CHUNK_SIZE=$(PLATFORM_CHUNK_SIZE) \
-		 MEMORY_ALIGN=$(PLATFORM_MEMORY_ALIGN) \
-         PLATFORM_MAX_TRAILER_PAGE_SIZE=$(PLATFORM_MAX_TRAILER_PAGE_SIZE) \
-		 BOOT_$(CORE) \
-		 APP_$(APP_CORE) \
-		 APP_CORE_ID=$(APP_CORE_ID) \
-		 $(PLATFORM) \
-		 $(FAMILY) \
-		 $(DEVICE_NAME)
-
-ifeq ($(USE_OVERWRITE), 1)
-DEFINES+=MCUBOOT_OVERWRITE_ONLY
-ifeq ($(USE_SW_DOWNGRADE_PREV), 1)
-DEFINES+=MCUBOOT_DOWNGRADE_PREVENTION
-endif
-else
-ifeq ($(USE_BOOTSTRAP), 1)
-DEFINES+=MCUBOOT_BOOTSTRAP
-endif
-endif
-
-DEFINES+=MCUBOOT_MAX_IMG_SECTORS=$(MAX_IMG_SECTORS)
-DEFINES+=MCUBOOT_LOG_LEVEL=$(MCUBOOT_LOG_LEVEL)
-
-ifeq ($(USE_HW_ROLLBACK_PROT), 1)
-DEFINES+=MCUBOOT_HW_ROLLBACK_PROT
-# Service RAM app address (size 0x8000)
-DEFINES+=SERVICE_APP_OFFSET=$(PLATFORM_SERVICE_APP_OFFSET)
-# Service RAM app input parameters address (size 0x400)
-DEFINES+=SERVICE_APP_INPUT_PARAMS_OFFSET=$(PLATFORM_SERVICE_APP_INPUT_PARAMS_OFFSET)
-# Service RAM app descriptor addr (size 0x20)
-DEFINES+=SERVICE_APP_DESC_OFFSET=$(PLATFORM_SERVICE_APP_DESC_OFFSET)
-# Service RAM app size
-DEFINES+=SERVICE_APP_SIZE=$(PLATFORM_SERVICE_APP_SIZE)
-endif
-
-ifeq ($(USE_MEASURED_BOOT), 1)
-DEFINES+=MCUBOOT_MEASURED_BOOT
-DEFINES+=MAX_BOOT_RECORD_SZ=512
-DEFINES+=MCUBOOT_SHARED_DATA_BASE=0x08000800
-DEFINES+=MCUBOOT_SHARED_DATA_SIZE=0x200
-endif
-
-ifeq ($(USE_DATA_SHARING), 1)
-DEFINES+=MCUBOOT_DATA_SHARING
-DEFINES+=MAX_BOOT_RECORD_SZ=512
-DEFINES+=MCUBOOT_SHARED_DATA_BASE=0x08000800
-DEFINES+=MCUBOOT_SHARED_DATA_SIZE=0x200
-endif
-
-# Check FIH profile param
-ifneq ($(filter $(FIH_PROFILE_LEVEL), $(FIH_PROFILE_LEVEL_LIST)),)
-ifneq ($(FIH_PROFILE_LEVEL), OFF)
-DEFINES+=MCUBOOT_FIH_PROFILE_ON
-DEFINES+=MCUBOOT_FIH_PROFILE_$(FIH_PROFILE_LEVEL)
-endif
-else
-$(error Wrong FIH_PROFILE_LEVEL param)
-endif
-
+DEFINES+=MBEDTLS_CONFIG_FILE='"mcuboot_crypto_config.h"'\
+         ECC256_KEY_FILE='"$(SIGN_KEY_FILE).pub"'\
+         MCUBOOT_IMAGE_NUMBER=$(MCUBOOT_IMAGE_NUMBER)\
+         USE_SHARED_SLOT=$(USE_SHARED_SLOT)\
+         MCUBOOT_PLATFORM_CHUNK_SIZE=$(PLATFORM_CHUNK_SIZE)\
+         MEMORY_ALIGN=$(PLATFORM_MEMORY_ALIGN)\
+         PLATFORM_MAX_TRAILER_PAGE_SIZE=$(PLATFORM_MAX_TRAILER_PAGE_SIZE)\
+         MCUBOOT_MAX_IMG_SECTORS=$(MAX_IMG_SECTORS)\
+         BOOT_$(CORE)\
+         APP_$(APP_CORE)\
+         APP_CORE_ID=$(APP_CORE_ID)\
+         $(PLATFORM)\
+         $(FAMILY)
+ 
 # Select softfp or hardfp floating point. Default is softfp.
 VFP_SELECT=hardfp
 
@@ -195,10 +227,9 @@ CXXFLAGS=
 ASFLAGS=
 
 # Pass variables to linker script and overwrite path to it, if custom is required
-LDFLAGS+=-Wl,--defsym,BOOTLOADER_APP_FLASH_SIZE=$(BOOTLOADER_SIZE)
-LDFLAGS+=-Wl,--defsym,BOOTLOADER_APP_FLASH_ORIGIN=$(BOOTLOADER_ORIGIN)
-LDFLAGS+=-Wl,--defsym,BOOTLOADER_APP_RAM_SIZE=$(BOOTLOADER_APP_RAM_SIZE)
-LDFLAGS+=-Wl,--defsym,USER_APP_FLASH_SIZE=$(APPLICATION_1_BOOT_SLOT_ADDRESS)
+LDFLAGS+=-Wl,--defsym,CM0P_FLASH_SIZE=$(BOOTLOADER_SIZE)
+LDFLAGS+=-Wl,--defsym,CM0P_RAM_SIZE=$(BOOTLOADER_APP_RAM_SIZE)
+LDFLAGS+=-Wl,--defsym,USER_APP_FLASH_SIZE=$(APPLICATION_1_BOOT_SLOT_SIZE)
 
 # Additional / custom libraries to link in to the application.
 LDLIBS=
@@ -207,22 +238,36 @@ LDLIBS=
 LINKER_SCRIPT= 
 
 # Custom pre-build commands to run.
-PREBUILD=$(PREBUILD_VAR)
-
+# MCUboot uses submodules and "make getlibs" currently does not support
+# fetching submodules.
+# The PREBUILD command fetches the submodules only if the content of the
+# "mcuboot/ext/mbedtls" directory is empty.
 PREBUILD_VAR=+\
+@if [ -n "$$(ls -A $(MBEDTLS_PATH) 2>/dev/null)" ]; then\
+    echo "Git submodules for MCUboot exist. Skipping this step...";\
+    else\
+    echo "Initializing Git Submodules for MCUboot";\
+    cd libs/mcuboot;git submodule update --init --recursive;\
+fi;\
+rm -f ./source/memorymap.c;\
+rm -f ./source/memorymap.h;\
+rm -f ./memorymap.mk;\
 $(MAKE) generate_flashmap_cm0p;\
 $(MAKE) gen_cy_si_key_source_file;
 #$(MAKE) gen_key_ecc256; 
 #$(MAKE) gen_key_rsa2k;
 
+# Custom pre-build commands to run.
+PREBUILD=$(PREBUILD_VAR)
+
 # Custom post-build commands to run.
 ifeq ($(USE_SECURE_MODE_FOR_MCUBOOT), 1)
-	POSTBUILD=cysecuretools -t $(PLATFORM) sign-cysaf -i build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME).elf --key-path ../keys/$(SECURE_MODE_KEY_FILE).pem --output build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.elf;\
-	$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy -O ihex build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.elf build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.hex;\
-	$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.elf -S -O binary build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.bin --remove-section .cy_sflash_user_data --remove-section .cy_toc_part2;\
-	mv -f build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.elf build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME).elf;\
-	mv -f build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.hex build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME).hex;\
-	mv -f build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME)_secure.bin build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME).bin
+	POSTBUILD=$(CY_PYTHON_PATH) -m cysecuretools -t $(PLATFORM) sign-cysaf -i build/$(TARGET)/$(CONFIG)/$(APPNAME).elf --key-path ../keys/$(SECURE_MODE_KEY_FILE).pem --output build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf;\
+	$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy -O ihex build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex;\
+	$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf -S -O binary build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin --remove-section .cy_sflash_user_data --remove-section .cy_toc_part2;\
+	mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME).elf;\
+	mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex build/$(TARGET)/$(CONFIG)/$(APPNAME).hex;\
+	mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin build/$(TARGET)/$(CONFIG)/$(APPNAME).bin
 endif
 
 ################################################################################
@@ -255,5 +300,4 @@ CY_GETLIBS_SHARED_NAME=mtb_shared
 # software provided compiler by default).
 CY_COMPILER_GCC_ARM_DIR=
 
-include ./bootloader_libs.mk
 include $(CY_TOOLS_DIR)/make/start.mk

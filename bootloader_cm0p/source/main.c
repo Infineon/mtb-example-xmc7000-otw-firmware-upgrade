@@ -39,15 +39,18 @@
  * of such system or application assumes all risk of such use and in doing
  * so agrees to indemnify Cypress against all liability.
  *******************************************************************************/
+/* Header files */
 #include <inttypes.h>
 #include <stdbool.h>
+/* Drive header files */
 #include "cy_pdl.h"
-#include "cyhal_wdt.h"
-#include "cy_retarget_io.h"
+#include "cyhal.h"
 #include "cybsp.h"
+#include "cy_retarget_io.h"
 #include "cyw_platform_utils.h"
 #include "cycfg_pins.h"
 #include "cy_result.h"
+/* MCUboot header files */
 #include "sysflash/sysflash.h"
 #include "flash_map_backend/flash_map_backend.h"
 #include "bootutil/image.h"
@@ -59,6 +62,9 @@
 /*******************************************************************************
 * Macros
 ********************************************************************************/
+/* WDT time out for reset mode, in milliseconds. */
+#define WDT_TIME_OUT_MS                 4000UL
+
 #define CY_RSLT_MODULE_MCUBOOTAPP       0x500U
 
 #define CY_RSLT_MODULE_MCUBOOTAPP_MAIN  0x51U
@@ -67,96 +73,24 @@
 #define MCUBOOTAPP_RSLT_ERR             \
     (CY_RSLT_CREATE_EX(CY_RSLT_TYPE_ERROR, CY_RSLT_MODULE_MCUBOOTAPP, CY_RSLT_MODULE_MCUBOOTAPP_MAIN, 0))
 
-/* WDT time out for reset mode, in milliseconds. */
-#define WDT_TIME_OUT_MS                 4000
-
 #define BOOT_MSG_FINISH                 "Edge Protect Bootloader finished.\r\n" \
                                         "Deinitializing hardware..."
 
-/*******************************************************************************
-* Function Prototypes
-********************************************************************************/
-static inline __attribute__((always_inline))
-fih_uint calc_app_addr(uintptr_t flash_base, const struct boot_rsp *rsp);
-static bool do_boot(struct boot_rsp *rsp);
-static void hw_deinit(void);
-
 /******************************************************************************
- * Function Name: main
+ * Function Name: hw_deinit
  ******************************************************************************
  * Summary:
- *  System entrance point. This function initializes peripherals, initializes
- *  retarget IO, and performs a boot by calling the MCUboot functions. 
+ *  This function performs the necessary hardware de-initialization.
  *
  * Parameters:
  *  void
  *
- * Return:
- *  int
- *
  ******************************************************************************/
-int main(void)
+static void hw_deinit(void)
 {
-    struct boot_rsp rsp = {};
-    cy_rslt_t result = MCUBOOTAPP_RSLT_ERR;
-    bool boot_succeeded = false;
-    fih_int fih_status = FIH_FAILURE;
-
-    result = cybsp_init();
-    if (result != CY_RSLT_SUCCESS) {
-        CY_ASSERT((bool)0);
-        /* Loop forever... */
-        while (true) {
-            __WFI();
-        }
-    }
-
-    /* enable interrupts */
-    __enable_irq();
-
-    /* Initialize retarget-io to use the debug UART port */
-    result = cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
-    if (result != CY_RSLT_SUCCESS) {
-        CY_ASSERT((bool)0);
-        /* Loop forever... */
-        while (true) {
-            __WFI();
-        }
-    }
-
-    BOOT_LOG_INF("Edge Protect Bootloader Started");
-
-    FIH_CALL(boot_go, fih_status, &rsp);
-
-    if (FIH_TRUE == fih_eq(fih_status, FIH_SUCCESS)) {
-            BOOT_LOG_INF("User Application validated successfully");
-            /* initialize watchdog timer. it should be updated from user app
-            * to mark successful start up of this app. if the watchdog is not updated,
-            * reset will be initiated by watchdog timer and swap revert operation started
-            * to roll back to operable image.
-            */
-            cyhal_wdt_t *wdt = NULL;
-
-            result = cyhal_wdt_init(wdt, WDT_TIME_OUT_MS);
-            if (CY_RSLT_SUCCESS == result) {
-                boot_succeeded = do_boot(&rsp);
-                if (!boot_succeeded) {
-                    BOOT_LOG_ERR("Boot of next app failed");
-                }
-            } else {
-                BOOT_LOG_ERR("Failed to init WDT");
-            }
-    } else {
-            BOOT_LOG_ERR("Edge Protect Bootloader found none of bootable images");
-    }
-
-    while (true) {
-        if (boot_succeeded) {
-            (void)Cy_SysPm_CpuEnterDeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
-        } else {
-            __WFI();
-        }
-    }
+  /* Flush the TX buffer, need to be fixed in retarget_io */
+    while(cy_retarget_io_is_tx_active()){}
+    cy_retarget_io_deinit();
 }
 
 /******************************************************************************
@@ -182,8 +116,8 @@ fih_uint calc_app_addr(uintptr_t flash_base, const struct boot_rsp *rsp)
  * Function Name: do_boot
  ******************************************************************************
  * Summary:
- *  This function extracts the primary image address and enables CM7 to let it boot
- *  from that address.
+ *  This function extracts the primary image address and enables CM7 to 
+ *  let it boot from that address.
  *
  * Parameters:
  *  rsp - Pointer to a structure holding the address to boot from. 
@@ -193,35 +127,43 @@ static bool do_boot(struct boot_rsp *rsp)
 {
     uintptr_t flash_base = 0;
 
-    if (rsp != NULL) {
-        int status = flash_device_base(rsp->br_flash_dev_id, &flash_base);
+    if ((NULL != rsp) && (NULL != rsp->br_hdr))
+    {
+        int result = flash_device_base(rsp->br_flash_dev_id, &flash_base);
 
-        if (0 == status) {
+        if (CY_RSLT_SUCCESS == result)
+        {
             fih_uint app_addr = calc_app_addr(flash_base, rsp);
 
             BOOT_LOG_INF("Starting User Application (wait)...");
-            if (IS_ENCRYPTED(rsp->br_hdr)) {
+            
+            if (IS_ENCRYPTED(rsp->br_hdr))
+            {
                 BOOT_LOG_DBG(" * User application is encrypted");
             }
+
             BOOT_LOG_INF("Start slot Address: 0x%08" PRIx32, (uint32_t)fih_uint_decode(app_addr));
 
-            status = flash_device_base(rsp->br_flash_dev_id, &flash_base);
-            if (status != 0 || fih_uint_eq(calc_app_addr(flash_base, rsp), app_addr) != FIH_TRUE) {
+            result = flash_device_base(rsp->br_flash_dev_id, &flash_base);
+
+            if (CY_RSLT_SUCCESS != result || fih_uint_eq(calc_app_addr(flash_base, rsp), app_addr) != FIH_TRUE)
+            {
                 return false;
             }
 
-#if defined APP_CM7
-            /* This function does not return */
+#ifdef APP_CM7
             BOOT_LOG_INF("Launching app on CM7 core");
             BOOT_LOG_INF(BOOT_MSG_FINISH);
             hw_deinit();
+            /* This function turns on CM7 */
             xmc7000_launch_cm7_app(app_addr);
             return true;
 #else
-#error "Application should run on Cortex-M7"
+#error "Application should run on Cortex-M7 core"
 #endif /* APP_CM7 */
-
-        } else {
+        }
+        else
+        {
             BOOT_LOG_ERR("Flash device ID not found");
             return false;
         }
@@ -230,17 +172,129 @@ static bool do_boot(struct boot_rsp *rsp)
 }
 
 /******************************************************************************
- * Function Name: hw_deinit
+ * Function Name: deep_sleep_Prepare
  ******************************************************************************
  * Summary:
- *  This function performs the necessary hardware de-initialization.
+ *  This function will prepare the device to enter into deep sleep mode
+ *
+ * Parameters:
+ *  void
  *
  ******************************************************************************/
-static void hw_deinit(void)
+static void deep_sleep_Prepare(void)
 {
-  /* Flush the TX buffer, need to be fixed in retarget_io */
-    while(cy_retarget_io_is_tx_active()){}
-    cy_retarget_io_deinit();
+    static cy_stc_syspm_callback_params_t syspmSleepAppParams;
+    static cy_stc_syspm_callback_t syspmAppSleepCallbackHandler =
+        {
+            Cy_SCB_UART_DeepSleepCallback, CY_SYSPM_DEEPSLEEP, 0u, &syspmSleepAppParams,
+            NULL, NULL, 0};
+
+    syspmSleepAppParams.base = cy_retarget_io_uart_obj.base;
+    syspmSleepAppParams.context = (void *)&(cy_retarget_io_uart_obj.context);
+
+    if (!Cy_SysPm_RegisterCallback(&syspmAppSleepCallbackHandler))
+    {
+        BOOT_LOG_ERR("Failed to register syspmAppSleepCallbackHandler");
+        CY_ASSERT(0);
+    }
+}
+
+/******************************************************************************
+ * Function Name: main
+ ******************************************************************************
+ * Summary:
+ *  System entrance point. This function initializes peripherals, initializes
+ *  retarget IO, and performs a boot by calling the MCUboot functions. 
+ *
+ * Parameters:
+ *  void
+ *
+ * Return:
+ *  int
+ *
+ ******************************************************************************/
+int main(void)
+{
+    struct boot_rsp rsp = {};
+    bool boot_succeeded = false;
+    fih_int fih_status = FIH_FAILURE;
+    cy_rslt_t result = MCUBOOTAPP_RSLT_ERR;
+    cyhal_wdt_t *wdt = NULL;
+
+    result = cybsp_init();
+    if (CY_RSLT_SUCCESS != result)
+    {
+        CY_ASSERT(0);
+        /* Loop forever... */
+        while (true)
+        {
+            __WFI();
+        }
+    }
+
+    /* enable interrupts */
+    __enable_irq();
+
+    /* Initialize retarget-io to use the debug UART port */
+    result = cy_retarget_io_init(CYBSP_DEBUG_UART_TX, CYBSP_DEBUG_UART_RX, CY_RETARGET_IO_BAUDRATE);
+    if (CY_RSLT_SUCCESS != result)
+    {
+        CY_ASSERT(0);
+        /* Loop forever... */
+        while (true)
+        {
+            __WFI();
+        }
+    }
+    
+    BOOT_LOG_INF("\x1b[2J\x1b[;H");
+    BOOT_LOG_INF("Edge Protect Bootloader Started");
+
+    FIH_CALL(boot_go, fih_status, &rsp);
+
+    if (FIH_TRUE == fih_eq(fih_status, FIH_SUCCESS))
+    {
+        BOOT_LOG_INF("User Application validated successfully");
+
+        /* initialize watchdog timer. it should be updated from user app
+        * to mark successful start up of this app. if the watchdog is not updated,
+        * reset will be initiated by watchdog timer and swap revert operation started
+        * to roll back to operable image.
+        */
+        result = cyhal_wdt_init(wdt, WDT_TIME_OUT_MS);
+
+        if (CY_RSLT_SUCCESS == result)
+        {
+            boot_succeeded = do_boot(&rsp);
+
+            if (!boot_succeeded)
+            {
+                BOOT_LOG_ERR("Boot of next app failed");
+            }
+        }
+        else
+        {
+            BOOT_LOG_ERR("Failed to init WDT");
+        }
+    }
+    else
+    {
+        BOOT_LOG_ERR("Edge Protect Bootloader found none of bootable images");
+    }
+
+    deep_sleep_Prepare();
+
+    while (true)
+    {
+        if (boot_succeeded)
+        {
+            (void)Cy_SysPm_CpuEnterDeepSleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
+        }
+        else
+        {
+            __WFI();
+        }
+    }
 }
 
 /* [] END OF FILE */

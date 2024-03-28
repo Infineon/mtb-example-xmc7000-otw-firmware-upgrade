@@ -27,8 +27,8 @@
 # Basic Configuration
 ################################################################################
 
-# Include the common make files
-include ../common.mk
+# Include the user configuration make file
+include ../user_config.mk
 
 # Name of application (used to derive name of final linked file).
 # 
@@ -43,17 +43,14 @@ VERBOSE=
 # DFU App Specific Configuration
 ###############################################################################
 
-# Include the application user config make files 
-include ../user_config.mk
-
 # To enable the DFU transport components.
 ifeq ($(SELECTED_TRANSPORT), I2C)
     COMPONENTS=DFU_I2C DFU_USER
     $(info Selected I2C transport for DFU.)
 else ifeq ($(SELECTED_TRANSPORT), UART)
     COMPONENTS=DFU_UART DFU_USER
-    DEFINES+=DFU_UART_TX=P0_1
-    DEFINES+=DFU_UART_RX=P0_0
+    DEFINES+=DFU_UART_TX=P20_4
+    DEFINES+=DFU_UART_RX=P20_3
     $(info Selected UART transport for DFU.)
 else ifeq ($(SELECTED_TRANSPORT), SPI)
     COMPONENTS=DFU_SPI DFU_USER
@@ -74,30 +71,65 @@ generate_flashmap_cm7:
 	@echo -e "\n============================================================="
 	@echo -e "= Generating memorymap.h, memorymap.c and memorymap.mk ="
 	@echo -e "============================================================="
-	$(CY_PYTHON_PATH) ../scripts/memorymap_rework.py run -p ../flashmap/xmc7200_platform.json -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
+	$(CY_PYTHON_PATH) ../scripts/memorymap_xmc7000.py run -p ../flashmap/$(PLATFORM_CONFIG) -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap -d $(IMG_ID) > ./memorymap.mk
 	@echo -e "=============================================================\n"
 
 -include ./memorymap.mk
+DEFINES+=CY_FLASH_MAP_JSON
 endif
 
-# Default start address of application (boot)
-PLATFORM_USER_APP_START=$(APPLICATION_1_BOOT_SLOT_ADDRESS)
+# Include the common library make file
+include ../common_libs.mk
 
-# For XMC7000 platform PRIMARY_IMG_START start is the same as USER_APP_START
-# This parameter can be different in cases when code is resided in
-# flash mapped to one address range, but executed using different bus
-# for access with another address range. For example, execution of code
-# from external memory in XIP mode.
-PLATFORM_DEFAULT_PRIMARY_IMG_START=$(APPLICATION_1_BOOT_SLOT_ADDRESS)
+# use USE_OVERWRITE = 1 for overwrite only mode
+# use USE_OVERWRITE = 0 for swap upgrade mode
+ifeq ($(USE_OVERWRITE), )
+USE_OVERWRITE?=$(PLATFORM_DEFAULT_USE_OVERWRITE)
+endif
 
-USER_APP_START=$(APPLICATION_1_BOOT_SLOT_ADDRESS)
-USER_APP_SIZE=$(APPLICATION_1_BOOT_SLOT_SIZE)
-PRIMARY_IMG_START=$(APPLICATION_1_BOOT_SLOT_ADDRESS)
-SECONDARY_IMG_START=$(APPLICATION_1_UPGRADE_SLOT_ADDRESS)
+# 1. Define the image type.
+# 2. Ignore the build directory(if any) of other build mode to avoid linker error.
+# 3. Disabling the encrpyt image support while signing the boot image
+# 4. Add flag, if not using swap for upgrade
+ifeq ($(IMG_TYPE), BOOT)
+DEFINES+=BOOT_IMAGE
+CY_IGNORE+=build/UPGRADE
+ENC_IMG=0
+else ifeq ($(IMG_TYPE), UPGRADE)
+DEFINES+=UPGRADE_IMAGE
+CY_IGNORE+=build/BOOT
+DEFINES+=SWAP_DISABLED=$(USE_OVERWRITE)
+endif
 
-# possible values are 0 and 0xff
-# internal Flash by default
-ERASED_VALUE=0xFF
+# Set the version of the app using the following three variables.
+# This version information is passed to the Python module "imgtool" or "cysecuretools" while
+# signing the image in the post build step. Default values are set as follows.
+ifeq ($(IMG_TYPE), BOOT)
+APP_VERSION_MAJOR?=1
+APP_VERSION_MINOR?=0
+APP_VERSION_BUILD?=0
+else ifeq ($(IMG_TYPE), UPGRADE)
+APP_VERSION_MAJOR?=2
+APP_VERSION_MINOR?=0
+APP_VERSION_BUILD?=0
+endif
+
+# Add flag to imgtool if not using swap for upgrade
+ifeq ($(USE_OVERWRITE), 1)
+UPGRADE_TYPE:=--overwrite-only
+DEFINES+=MCUBOOT_OVERWRITE_ONLY
+endif
+
+# Add image type, version and core name metadata to image
+IMG_VER_ARG=$(APP_VERSION_MAJOR).$(APP_VERSION_MINOR).$(APP_VERSION_BUILD)
+DEFINES+=IMG_VER_MSG='"$(IMG_VER_ARG)"'
+DEFINES+=IMG_TYPE_MSG='"$(IMG_TYPE)"'
+DEFINES+=CORE_NAME_MSG='"$(CORE_NAME)"'
+
+# Flash erase value
+# Possible values are 0 and 0xff
+# External flash is not supported for XMC7000 family at this moment
+ERASED_VALUE=0xff
 
 ################################################################################
 # Advanced Configuration
@@ -113,87 +145,62 @@ ERASED_VALUE=0xFF
 # ... then code in directories named COMPONENT_foo and COMPONENT_bar will be
 # added to the build
 #
--include ./libs/mtb.mk
+COMPONENTS+=
 
-MCUBOOT_PATH=$(SEARCH_mcuboot)
-MCUBOOT_CY_PATH=$(MCUBOOT_PATH)/boot/cypress
-MCUBOOTAPP_PATH=$(MCUBOOT_CY_PATH)/MCUBootApp
+# Enable optional code that is ordinarily disabled by default.
+#
+# Available components depend on the specific targeted hardware and firmware
+# in use. In general, if you have
+#
+#    COMPONENTS=foo bar
+#
+# ... then code in directories named COMPONENT_foo and COMPONENT_bar will be
+# added to the build
+#
 
 # Like COMPONENTS, but disable optional code that was enabled by default.
-DISABLE_COMPONENTS+=XMC7xDUAL_CM0P_SLEEP
+DISABLE_COMPONENTS=XMC7xDUAL_CM0P_SLEEP XMC7x_CM0P_SLEEP
 
 # Set this application to run at the CM7
-CORE=CM7
-CORE_NAME=CM7_$(APP_CORE_ID)
+CORE=$(APP_CORE)
+CORE_NAME=$(APP_CORE)_$(APP_CORE_ID)
 
+# By default the build system automatically looks in the Makefile's directory
+# tree for source code and builds it. The SOURCES variable can be used to
+# manually add source code to the build process from a location not searched
+# by default, or otherwise not found by the build system.
 # Include confirmation flag setting (img_ok) implementation
 ifeq ($(IMG_TYPE), UPGRADE)
 ifeq ($(USE_OVERWRITE), 0)
-SOURCES+=$(MCUBOOT_CY_PATH)/platforms/img_confirm/$(FAMILY)/set_img_ok.c 
+SOURCES+=$(MCUBOOT_CY_PATH)/platforms/img_confirm/$(FAMILY)/set_img_ok.c
+INCLUDES+=$(MCUBOOT_CY_PATH)/platforms/img_confirm
 endif
 endif
-
-# Like SOURCES, but for include directories. Value should be paths to
-# directories (without a leading -I).
-INCLUDES+=\
-    ../bootloader_cm0p/keys\
-    $(MCUBOOT_CY_PATH)/platforms/memory/flash_map_backend\
-    $(MCUBOOTAPP_PATH)/config\
-    $(MCUBOOTAPP_PATH)/config/mcuboot_config\
-    $(MCUBOOTAPP_PATH)/os\
 
 # The following defines used for firmware upgrade
-DEFINES+=MCUBOOT_IMAGE_NUMBER=$(MCUBOOT_IMAGE_NUMBER) \
-         USER_APP_RAM_START=$(USER_APP_RAM_START) \
-         USER_APP_RAM_SIZE=$(USER_APP_RAM_SIZE) \
-         USER_APP_START=$(APPLICATION_1_BOOT_SLOT_ADDRESS) \
-         USER_APP_SIZE=$(APPLICATION_1_BOOT_SLOT_SIZE) \
-         PRIMARY_IMG_START=$(APPLICATION_1_BOOT_SLOT_ADDRESS) \
-         MEMORY_ALIGN=$(PLATFORM_MEMORY_ALIGN) \
-         PLATFORM_MAX_TRAILER_PAGE_SIZE=$(PLATFORM_MAX_TRAILER_PAGE_SIZE) \
-         APP_$(APP_CORE) \
-         BOOT_$(APP_CORE) \
-         APP_CORE_ID=$(APP_CORE_ID) \
-         $(PLATFORM_DEFINES_APP) \
-         $(FAMILY) \
-         $(PLATFORM) \
-         $(DEVICE_NAME)
+DEFINES+=MCUBOOT_IMAGE_NUMBER=$(MCUBOOT_IMAGE_NUMBER)\
+         USER_APP_START=$(PRIMARY_IMG_START)\
+         USER_APP_SIZE=$(SLOT_SIZE)\
+         PRIMARY_IMG_START=$(PRIMARY_IMG_START)\
+         MEMORY_ALIGN=$(PLATFORM_MEMORY_ALIGN)\
+         PLATFORM_MAX_TRAILER_PAGE_SIZE=$(PLATFORM_MAX_TRAILER_PAGE_SIZE)\
+         APP_$(APP_CORE)\
+         BOOT_$(APP_CORE)\
+         APP_CORE_ID=$(APP_CORE_ID)\
+         $(PLATFORM_DEFINES_APP)\
+         $(FAMILY)\
+         $(PLATFORM)
 
 # Add additional defines to the build process (without a leading -D).
 DEFINES+=CY_DFU_FLOW=CY_DFU_MCUBOOT_FLOW
 DEFINES+=CY_DFU_PRODUCT=0x01020304
 
-# Application-specific DEFINES
-ifeq ($(IMG_TYPE), BOOT)
-    DEFINES+=BOOT_IMAGE
-    ENC_IMG=0
-    APP_VERSION_MAJOR ?= 1
-    APP_VERSION_MINOR ?= 0
-    APP_VERSION_BUILD ?= 0
-    PLATFORM_SIGN_ARGS:=--header-size 1024 --align 8
-    HEADER_OFFSET=$(PRIMARY_IMG_START)
-else
-    DEFINES+=UPGRADE_IMAGE\
-             SWAP_DISABLED=$(USE_OVERWRITE)
-    APP_VERSION_MAJOR ?= 2
-    APP_VERSION_MINOR ?= 0
-    APP_VERSION_BUILD ?= 0
-    PLATFORM_SIGN_ARGS:=--pad --header-size 1024 --align 8
-    HEADER_OFFSET=$(SECONDARY_IMG_START)
-endif
+DEFINES+=APP_VERSION_MAJOR=$(APP_VERSION_MAJOR)\
+         APP_VERSION_MINOR=$(APP_VERSION_MINOR)\
+         APP_VERSION_BUILD=$(APP_VERSION_BUILD)
 
-# add flag to imgtool if not using swap for upgrade
-ifeq ($(USE_OVERWRITE), 1)
-UPGRADE_TYPE:=--overwrite-only
-DEFINES+=MCUBOOT_OVERWRITE_ONLY
-endif
-
-# Add version metadata to image
-IMG_VER_ARG=$(APP_VERSION_MAJOR).$(APP_VERSION_MINOR).$(APP_VERSION_BUILD)
-DEFINES+=IMG_VER_MSG='"$(IMG_VER_ARG)"' 
-DEFINES+=IMG_TYPE_MSG='"$(IMG_TYPE)"'
-DEFINES+=CORE_NAME_MSG='"$(CORE_NAME)"'
-SIGN_ARGS=$(PLATFORM_SIGN_ARGS)
+# Add additional defines to the build process (without a leading -D).
+DEFINES+=CY_RETARGET_IO_CONVERT_LF_TO_CRLF
 
 # Select softfp or hardfp floating point. Default is softfp.
 VFP_SELECT=
@@ -216,29 +223,56 @@ CXXFLAGS=
 # above.
 ASFLAGS=
 
-# Path to the linker script to use and other linker options.
-LDFLAGS+=-Wl,--defsym,BOOT_HEADER_SIZE=$(BOOT_HEADER_SIZE)
-LDFLAGS+=-Wl,--defsym,BOOTLOADER_APP_FLASH_SIZE=$(BOOTLOADER_SIZE)
-LDFLAGS+=-Wl,--defsym,BOOTLOADER_APP_FLASH_ORIGIN=$(BOOTLOADER_ORIGIN)
-LDFLAGS+=-Wl,--defsym,BOOTLOADER_APP_RAM_SIZE=$(BOOTLOADER_APP_RAM_SIZE)
+# Additional / custom linker flags.
+LDFLAGS+=-Wl,--defsym,MCUBOOT_HEADER_SIZE=$(MCUBOOT_HEADER_SIZE)
+LDFLAGS+=-Wl,--defsym,CM0P_RAM_SIZE=$(BOOTLOADER_APP_RAM_SIZE)
+LDFLAGS+=-Wl,--defsym,USER_APP_SIZE=$(SLOT_SIZE)
+LDFLAGS+=-Wl,--defsym,USER_APP_START=$(PRIMARY_IMG_START)
+LDFLAGS+=-Wl,--defsym,CM0P_FLASH_SIZE=$(shell expr $$(( $(PRIMARY_IMG_START) - 0x10000000 )) )
 LDFLAGS+=-Wl,--defsym,USER_APP_RAM_SIZE=$(USER_APP_RAM_SIZE)
-LDFLAGS+=-Wl,--defsym,USER_APP_FLASH_START=$(USER_APP_START)
-LDFLAGS+=-Wl,--defsym,USER_APP_FLASH_SIZE=$(USER_APP_SIZE)
 
 # Additional / custom libraries to link in to the application.
 LDLIBS=
 
-# Path to the linker script to use (if empty, use the default linker script).
+# Path to the custom linker script to use and other linker options.
 LINKER_SCRIPT=
+
+# Set build directory for BOOT and UPGRADE images
+CY_BUILD_LOCATION=./build/$(IMG_TYPE)
+BINARY_OUT_PATH=$(CY_BUILD_LOCATION)/$(TARGET)/$(CONFIG)/$(APPNAME)
+
+XMC7000_PLATFORM_SIGN_ARGS=$(PLATFORM) sign-image --header-size 1024 --align 8 -v $(IMG_VER_ARG) -d "($(IMG_ID),$(IMG_VER_ARG))" -S $(SLOT_SIZE) -R $(ERASED_VALUE) $(UPGRADE_TYPE)\
+               --key-path $(SIGN_KEY_FILE_PATH)/$(SIGN_KEY_FILE).pem
+
+# Starting address of the CM4 app or the offset at which the header of an image
+# will begin. Image = Header + App + TLV + Trailer. See MCUboot documenation for
+# details.
+# New relocated address = ORIGIN + HEADER_OFFSET
+# Padding the image for UPGRADE image.
+ifeq ($(IMG_TYPE), BOOT)
+HEX_START_ADDR=$(PRIMARY_IMG_START)
+else ifeq ($(IMG_TYPE), UPGRADE)
+XMC7000_PLATFORM_SIGN_ARGS+= --pad
+HEX_START_ADDR=$(SECONDARY_IMG_START)
+endif
 
 # Custom pre-build commands to run.
 PREBUILD=$(PREBUILD_VAR)
 
+# Custom pre-build commands to run.
 PREBUILD_VAR=+\
-$(MAKE) generate_flashmap_cm7;\
+rm -f ./source/memorymap.c;\
+rm -f ./source/memorymap.h;\
+rm -f ./memorymap.mk;\
+$(MAKE) generate_flashmap_cm7;
+
+POSTBUILD_VAR=+\
+cp -f $(BINARY_OUT_PATH).hex $(BINARY_OUT_PATH)_unsigned.hex;\
+rm -f $(BINARY_OUT_PATH).hex;\
+$(CY_PYTHON_PATH) -m cysecuretools -t $(XMC7000_PLATFORM_SIGN_ARGS) --image $(BINARY_OUT_PATH)_unsigned.hex --output $(BINARY_OUT_PATH).hex --hex-addr=$(HEX_START_ADDR);
 
 # Custom post-build commands to run.
-POSTBUILD=cysecuretools -t $(PLATFORM) sign-image $(SIGN_ARGS) -v $(IMG_VER_ARG) -d "($(IMG_ID), $(IMG_VER_ARG))" -S $(USER_APP_SIZE) -R $(ERASED_VALUE) $(UPGRADE_TYPE) --key-path ../keys/$(SIGN_KEY_FILE).pem --image build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME).hex --output build/APP_KIT_XMC72_EVK/$(CONFIG)/$(APPNAME).hex --hex-addr=$(HEADER_OFFSET)
+POSTBUILD=$(POSTBUILD_VAR)
 
 ################################################################################
 # Paths

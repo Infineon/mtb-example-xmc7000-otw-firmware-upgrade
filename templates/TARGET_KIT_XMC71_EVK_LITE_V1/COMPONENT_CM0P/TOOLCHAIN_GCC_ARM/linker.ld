@@ -1,5 +1,5 @@
 /***************************************************************************//**
-* \file xmc7200d_x8384_cm0plus.ld
+* \file xmc7100_x4160_cm0plus.ld
 * \version 1.0.0
 *
 * Linker file for the GNU C compiler.
@@ -54,7 +54,6 @@ cm7_code_flash_reserve              = USER_APP_FLASH_SIZE;
 
 sram_base_address                   = 0x28000000;
 code_flash_base_address             = 0x10000000;
-code_flash_total_size               = 0x00830000;
 
 _base_SRAM_CM0P                     = sram_base_address + sram_start_reserve + sram_private_for_srom;
 _size_SRAM_CM0P                     = cm0plus_sram_reserve - sram_start_reserve - sram_private_for_srom;
@@ -102,7 +101,7 @@ MEMORY
      */
     cm0_ram         (rxw)       : ORIGIN = _base_SRAM_CM0P,             LENGTH = _size_SRAM_CM0P
     cm0_flash       (rx)        : ORIGIN = _base_CODE_FLASH_CM0P,       LENGTH = _size_CODE_FLASH_CM0P
-    
+
     /* This is a 256K flash region used for EEPROM emulation. This region can also be used as the general purpose flash.
      * You can assign sections to this memory region for only one of the cores.
      */
@@ -195,7 +194,7 @@ SECTIONS
         /* Copy data section to RAM */
         LONG (__etext)                                      /* From */
         LONG (__data_start__)                               /* To   */
-        LONG ((__data_end__ - __data_start__) / 4)          /* Size */
+        LONG ((__data_end__ - __data_start__)/4)            /* Size */
 
         __copy_table_end__ = .;
     } > cm0_flash
@@ -209,7 +208,7 @@ SECTIONS
         . = ALIGN(4);
         __zero_table_start__ = .;
         LONG (__bss_start__)
-        LONG ((__bss_end__ - __bss_start__) / 4)
+        LONG ((__bss_end__ - __bss_start__)/4)
         __zero_table_end__ = .;
     } > cm0_flash
 
@@ -354,11 +353,13 @@ SECTIONS
         KEEP(*(.cy_sflash_nar))
     } > sflash_nar
 
+
     /* Supervisory Flash: Public Key */
     .cy_sflash_public_key :
     {
         KEEP(*(.cy_sflash_public_key))
     } > sflash_public_key
+
 
     /* Supervisory Flash: Table of Content # 2 */
     .cy_toc_part2 :
@@ -375,6 +376,7 @@ SECTIONS
         KEEP(*(.cy_xip))
         __cy_xip_end = .;
     } > xip
+
 
     /* eFuse */
     .cy_efuse :
@@ -432,5 +434,4 @@ __cy_app_verify_length = __secure_object_size;
 
 /* Check application header placement */
 ASSERT(__app_header_start == ORIGIN(cm0_flash), "Incorrect app header placement")
-
 /* EOF */

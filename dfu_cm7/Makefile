@@ -202,6 +202,9 @@ DEFINES+=APP_VERSION_MAJOR=$(APP_VERSION_MAJOR)\
 # Add additional defines to the build process (without a leading -D).
 DEFINES+=CY_RETARGET_IO_CONVERT_LF_TO_CRLF
 
+# Disabled D-cache for XMC7000 based BSPs
+DEFINES+=CY_DISABLE_XMC7000_DATA_CACHE
+
 # Select softfp or hardfp floating point. Default is softfp.
 VFP_SELECT=
 

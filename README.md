@@ -27,7 +27,7 @@ This example demonstrates a firmware upgrade for the XMC7000 using the edge prot
 
 [View this README on GitHub.](https://github.com/Infineon/mtb-example-xmc7000-otw-firmware-upgrade)
 
-[Provide feedback on this code example.](https://cypress.co1.qualtrics.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyMzc5NDMiLCJTcGVjIE51bWJlciI6IjAwMi0zNzk0MyIsIkRvYyBUaXRsZSI6IlhNQzcwMDA6IE9UVyBmaXJtd2FyZSB1cGdyYWRlIiwicmlkIjoic3JkcyIsIkRvYyB2ZXJzaW9uIjoiMi4wLjAiLCJEb2MgTGFuZ3VhZ2UiOiJFbmdsaXNoIiwiRG9jIERpdmlzaW9uIjoiTUNEIiwiRG9jIEJVIjoiSUNXIiwiRG9jIEZhbWlseSI6IlBTT0MifQ==)
+[Provide feedback on this code example.](https://cypress.co1.qualtrics.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyMzc5NDMiLCJTcGVjIE51bWJlciI6IjAwMi0zNzk0MyIsIkRvYyBUaXRsZSI6IlhNQzcwMDA6IE9UVyBmaXJtd2FyZSB1cGdyYWRlIiwicmlkIjoic3JkcyIsIkRvYyB2ZXJzaW9uIjoiMi4wLjEiLCJEb2MgTGFuZ3VhZ2UiOiJFbmdsaXNoIiwiRG9jIERpdmlzaW9uIjoiTUNEIiwiRG9jIEJVIjoiSUNXIiwiRG9jIEZhbWlseSI6IlBTT0MifQ==)
 
 ## Requirements
 
@@ -888,6 +888,7 @@ Document title: *CE237943* – *XMC7000: OTW firmware upgrade*
  1.0.0   | New code example
  1.1.0   | Updated to support ModusToolbox&trade; v3.2
  2.0.0   | Updated to support MCUboot middleware v1.9.1 <br> Added support for KIT_XMC72_EVK_MUR_43439M2 and KIT_XMC71_EVK_LITE_V1 kits
+ 2.0.1   | Disabled D-cache for XMC7000 based BSPs
 
 <br>
 

@@ -204,9 +204,6 @@ DEFINES+=MBEDTLS_CONFIG_FILE='"mcuboot_crypto_config.h"'\
          APP_CORE_ID=$(APP_CORE_ID)\
          $(PLATFORM)\
          $(FAMILY)
- 
-# Disabled D-cache for XMC7000 based BSPs
-DEFINES+=CY_DISABLE_XMC7000_DATA_CACHE
 
 # Select softfp or hardfp floating point. Default is softfp.
 VFP_SELECT=hardfp

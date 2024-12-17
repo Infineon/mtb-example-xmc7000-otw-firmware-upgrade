@@ -103,6 +103,9 @@ cy_en_dfu_transport_t selected_transport = CY_DFU_UART;
 #elif defined COMPONENT_DFU_SPI
 #define DFU_TRANSPORT_MESSAGE_VER       "SPI"
 cy_en_dfu_transport_t selected_transport = CY_DFU_SPI;
+#elif defined COMPONENT_DFU_CANFD
+#define DFU_TRANSPORT_MESSAGE_VER       "CANFD"
+cy_en_dfu_transport_t selected_transport = CY_DFU_CANFD;
 #endif
 
 /*******************************************************************************

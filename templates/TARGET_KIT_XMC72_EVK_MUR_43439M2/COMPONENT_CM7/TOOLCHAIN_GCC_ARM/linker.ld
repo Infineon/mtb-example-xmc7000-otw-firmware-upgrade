@@ -53,6 +53,7 @@ sram_used_by_boot                   = 0x0; /* Used during boot by Cypress firmwa
 
 cm0plus_sram_reserve                = CM0P_RAM_SIZE; /* cm0 sram size */
 cm7_sram_reserve                    = USER_APP_RAM_SIZE; /* cm7_1 sram size */
+cm7_sram_non_cache_reserve          = 0x00020000; /* 128K  :non-cacheable sram size */
 
 code_flash_total_size               = 0x00830000;
 cm0plus_code_flash_reserve          = CM0P_FLASH_SIZE;
@@ -67,6 +68,9 @@ _size_SRAM_CM7_0                    = cm7_sram_reserve;
 /* In case of single CM7 device CM7_1 values should not be used */
 _base_SRAM_CM7_1                    = sram_base_address + cm0plus_sram_reserve + _size_SRAM_CM7_0;
 _size_SRAM_CM7_1                    = cm7_sram_reserve;
+
+_base_SRAM_NON_CACHE                = _base_SRAM_CM7_1 + _size_SRAM_CM7_1;
+_size_SRAM_NON_CACHE                = cm7_sram_non_cache_reserve;
 
 /* Code flash reservations */
 _base_CODE_FLASH_CM0P               = code_flash_base_address;
@@ -130,6 +134,7 @@ MEMORY
     /* The ram and flash regions control RAM and flash memory allocation for the CM7_0/CM7_1 core. */
     /* In our code example, User app will run on either CM7_0 core or CM7_1 core. So we are giving the same FLASH/RAM base address and size for both the CM7_0/CM7_1 cores */
     ram                 (rxw)       : ORIGIN = _base_SRAM_CM7_0,                  LENGTH = _size_SRAM_CM7_0                 /* SRAM */
+    ram_noncache        (rxw)       : ORIGIN = _base_SRAM_NON_CACHE,              LENGTH = _size_SRAM_NON_CACHE             /* Non-Cacheable SRAM */
     flash_cm0p          (rx)        : ORIGIN = _base_CODE_FLASH_CM0P,             LENGTH = _size_CODE_FLASH_CM0P            /* CODE flash CM0+ */
     flash               (rx)        : ORIGIN = _base_CODE_FLASH_CM7_0,            LENGTH = _size_CODE_FLASH_CM7_0           /* CODE flash CM7_0/CM7_1 */
 
@@ -206,7 +211,6 @@ SECTIONS
         KEEP(*(.eh_frame*))
     } > flash
 
-
     .ARM.extab :
     {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
@@ -228,17 +232,22 @@ SECTIONS
         /* Copy data section to RAM */
         LONG (__etext)                                      /* From */
         LONG (__data_start__)                               /* To   */
-        LONG ((__data_end__ - __data_start__) / 4)          /* Size */
-        
+        LONG ((__data_end__ - __data_start__)/4)            /* Size */
+
+        /* Copy data section to noncache RAM */
+        LONG (__noncache_ramdata_lma_start__)               /* From */
+        LONG (__noncacheable_ram_start__)                   /* To   */
+        LONG ((__noncacheable_ram_end__ - __noncacheable_ram_start__)/4)                 /* Size */
+
         /* Copy code to ITCM */
         LONG (__zero_table_end__)                           /* From */
-        LONG (__itcm_start__)                                     /* To   */
-        LONG ((__itcm_end__ - __itcm_start__)/4)  /* Size */
+        LONG (__itcm_start__)                               /* To   */
+        LONG ((__itcm_end__ - __itcm_start__)/4)            /* Size */
 
         /* Copy data to DTCM */
-        LONG (__itcm_flash_end__)                            /* From */
-        LONG (__dtcm_start__)                                      /* To   */
-        LONG ((__dtcm_end__ - __dtcm_start__)/4)   /* Size */
+        LONG (__itcm_flash_end__)                           /* From */
+        LONG (__dtcm_start__)                               /* To   */
+        LONG ((__dtcm_end__ - __dtcm_start__)/4)            /* Size */
 
         __copy_table_end__ = .;
     } > flash
@@ -249,9 +258,11 @@ SECTIONS
         . = ALIGN(4);
         __zero_table_start__ = .;
         LONG (__bss_start__)
-        LONG ((__bss_end__ - __bss_start__) / 4)
+        LONG ((__bss_end__ - __bss_start__)/4)
+
         __zero_table_end__ = .;
     } > flash
+
 
     /* itcm */
     .cy_itcm ORIGIN(itcm):
@@ -317,13 +328,20 @@ SECTIONS
         KEEP(*(.cy_ramfunc*))
         . = ALIGN(32);
 
-        KEEP(*(cy_sharedmem*))
-        . = ALIGN(4);
-
         __data_end__ = .;
 
     } > ram AT>flash
 
+    __noncache_ramdata_lma_start__ = __etext + __data_end__ - __data_start__;
+
+    .ram_noncache :
+    {
+        . = ALIGN(32);
+        __noncacheable_ram_start__ = .;
+        *(.cy_sharedmem)
+        . = ALIGN(4);
+        __noncacheable_ram_end__ = .;
+    } > ram_noncache AT>flash
 
     /* Place variables in the section that should not be initialized during the
     *  device startup.
@@ -386,7 +404,7 @@ SECTIONS
     /* Check if data + heap + stack exceeds RAM limit */
     ASSERT(__StackLimit >= __HeapLimit, "region RAM overflowed with stack")
 
-    
+
     /* Emulated EEPROM Flash area */
     .cy_em_eeprom :
     {

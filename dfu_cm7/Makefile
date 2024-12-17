@@ -54,7 +54,10 @@ else ifeq ($(SELECTED_TRANSPORT), UART)
     $(info Selected UART transport for DFU.)
 else ifeq ($(SELECTED_TRANSPORT), SPI)
     COMPONENTS=DFU_SPI DFU_USER
-    $(info Selected SPI transport for DFU.)  
+    $(info Selected SPI transport for DFU.)
+else ifeq ($(SELECTED_TRANSPORT), CANFD)
+    COMPONENTS=DFU_CANFD DFU_USER
+    $(info Selected CANFD transport for DFU.)
 else
     $(error selected DFU transport is not supported at the moment !.)
 endif
@@ -201,9 +204,6 @@ DEFINES+=APP_VERSION_MAJOR=$(APP_VERSION_MAJOR)\
 
 # Add additional defines to the build process (without a leading -D).
 DEFINES+=CY_RETARGET_IO_CONVERT_LF_TO_CRLF
-
-# Disabled D-cache for XMC7000 based BSPs
-DEFINES+=CY_DISABLE_XMC7000_DATA_CACHE
 
 # Select softfp or hardfp floating point. Default is softfp.
 VFP_SELECT=

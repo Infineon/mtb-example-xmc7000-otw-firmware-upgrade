@@ -66,18 +66,22 @@ endif
 # Memory (flash) map  Specific Configuration For Firmware Upgrade
 ###############################################################################
 
-.PHONY: generate_flashmap_cm7
-
 # Python command to generate flashmap header file from flashmap JSON file
 ifneq ($(FLASH_MAP), )
-generate_flashmap_cm7:
+FORCE:
+memorymap.mk: FORCE
 	@echo -e "\n============================================================="
 	@echo -e "= Generating memorymap.h, memorymap.c and memorymap.mk ="
 	@echo -e "============================================================="
-	$(CY_PYTHON_PATH) ../scripts/memorymap_xmc7000.py run -p ../flashmap/$(PLATFORM_CONFIG) -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap -d $(IMG_ID) > ./memorymap.mk
+	@$(if $(SEARCH_core-make),$(CY_PYTHON_PATH),true) ../scripts/memorymap_xmc7000.py run -p ../flashmap/$(PLATFORM_CONFIG) -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap -d $(IMG_ID) > ./memorymap.mk.tmp
+	@if ! cmp -s "memorymap.mk.tmp" "memorymap.mk"; then \
+		mv -f "memorymap.mk.tmp" "memorymap.mk"; \
+	else \
+		rm -f "memorymap.mk.tmp"; \
+	fi
 	@echo -e "=============================================================\n"
 
--include ./memorymap.mk
+-include memorymap.mk
 DEFINES+=CY_FLASH_MAP_JSON
 endif
 
@@ -260,14 +264,7 @@ HEX_START_ADDR=$(SECONDARY_IMG_START)
 endif
 
 # Custom pre-build commands to run.
-PREBUILD=$(PREBUILD_VAR)
-
-# Custom pre-build commands to run.
-PREBUILD_VAR=+\
-rm -f ./source/memorymap.c;\
-rm -f ./source/memorymap.h;\
-rm -f ./memorymap.mk;\
-$(MAKE) generate_flashmap_cm7;
+PREBUILD=
 
 POSTBUILD_VAR=+\
 cp -f $(BINARY_OUT_PATH).hex $(BINARY_OUT_PATH)_unsigned.hex;\

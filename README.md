@@ -27,12 +27,12 @@ This example demonstrates a firmware upgrade for the XMC7000 using the edge prot
 
 [View this README on GitHub.](https://github.com/Infineon/mtb-example-xmc7000-otw-firmware-upgrade)
 
-[Provide feedback on this code example.](https://cypress.co1.qualtrics.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyMzc5NDMiLCJTcGVjIE51bWJlciI6IjAwMi0zNzk0MyIsIkRvYyBUaXRsZSI6IlhNQzcwMDA6IE9UVyBmaXJtd2FyZSB1cGdyYWRlIiwicmlkIjoic3JkcyIsIkRvYyB2ZXJzaW9uIjoiMi4xLjAiLCJEb2MgTGFuZ3VhZ2UiOiJFbmdsaXNoIiwiRG9jIERpdmlzaW9uIjoiTUNEIiwiRG9jIEJVIjoiSUNXIiwiRG9jIEZhbWlseSI6IlBTT0MifQ==)
+[Provide feedback on this code example.](https://cypress.co1.qualtrics.com/jfe/form/SV_1NTns53sK2yiljn?Q_EED=eyJVbmlxdWUgRG9jIElkIjoiQ0UyMzc5NDMiLCJTcGVjIE51bWJlciI6IjAwMi0zNzk0MyIsIkRvYyBUaXRsZSI6IlhNQzcwMDA6IE9UVyBmaXJtd2FyZSB1cGdyYWRlIiwicmlkIjoic3JkcyIsIkRvYyB2ZXJzaW9uIjoiMi4yLjAiLCJEb2MgTGFuZ3VhZ2UiOiJFbmdsaXNoIiwiRG9jIERpdmlzaW9uIjoiTUNEIiwiRG9jIEJVIjoiSUNXIiwiRG9jIEZhbWlseSI6IlBTT0MifQ==)
 
 
 ## Requirements
 
-- [ModusToolbox&trade;](https://www.infineon.com/modustoolbox) v3.3 or later (tested with v3.3)
+- [ModusToolbox&trade;](https://www.infineon.com/modustoolbox) v3.4 or later (tested with v3.4)
 - Board support package (BSP) minimum required version: 2.3.0
 - Programming language: C
 - Associated parts: [XMC7000 MCU](https://www.infineon.com/cms/en/product/microcontroller/32-bit-industrial-microcontroller-based-on-arm-cortex-m/32-bit-xmc7000-industrial-microcontroller-arm-cortex-m7)
@@ -934,6 +934,7 @@ Document title: *CE237943* – *XMC7000: OTW firmware upgrade*
  2.0.0   | Updated to support MCUboot middleware v1.9.1 <br> Added support for KIT_XMC72_EVK_MUR_43439M2 and KIT_XMC71_EVK_LITE_V1 kits
  2.0.1   | Disabled D-cache for XMC7000 based BSPs
  2.1.0   | Enabled D-cache support for XMC7000 devices <br> Added support for CAN FD transport
+ 2.2.0   | Updated to support NINJA based build flow
 <br>
 
 

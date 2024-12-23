@@ -43,7 +43,7 @@ VERBOSE=
 # MCUboot Specific Configuration
 ###############################################################################
 
-.PHONY: gen_cy_si_key_source_file gen_key_rsa2k gen_key_ecc256 generate_flashmap_cm0p
+.PHONY: gen_cy_si_key_source_file gen_key_rsa2k gen_key_ecc256
 
 # Command to generate `cy_si_key.c` file
 gen_cy_si_key_source_file:
@@ -63,14 +63,20 @@ gen_key_ecc256:
 
 # Python command to generate memorymap sources file from memorymap JSON file
 ifneq ($(FLASH_MAP), )
-generate_flashmap_cm0p:
+FORCE:
+memorymap.mk: FORCE
 	@echo -e "\n============================================================="
 	@echo -e "= Generating memorymap.h, memorymap.c and memorymap.mk ="
 	@echo -e "============================================================="
-	$(CY_PYTHON_PATH) ../scripts/memorymap_xmc7000.py run -p ../flashmap/$(PLATFORM_CONFIG) -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk
+	@$(if $(SEARCH_core-make),$(CY_PYTHON_PATH),true) ../scripts/memorymap_xmc7000.py run -p ../flashmap/$(PLATFORM_CONFIG) -i ../flashmap/$(FLASH_MAP) -o ./source -n memorymap > ./memorymap.mk.tmp
+	@if ! cmp -s "memorymap.mk.tmp" "memorymap.mk"; then \
+		mv -f "memorymap.mk.tmp" "memorymap.mk"; \
+	else \
+		rm -f "memorymap.mk.tmp"; \
+	fi
 	@echo -e "=============================================================\n"
 
--include ./memorymap.mk
+-include memorymap.mk
 DEFINES+=CY_FLASH_MAP_JSON
 endif
 
@@ -238,36 +244,18 @@ LDLIBS=
 LINKER_SCRIPT= 
 
 # Custom pre-build commands to run.
-# MCUboot uses submodules and "make getlibs" currently does not support
-# fetching submodules.
-# The PREBUILD command fetches the submodules only if the content of the
-# "mcuboot/ext/mbedtls" directory is empty.
-PREBUILD_VAR=+\
-@if [ -n "$$(ls -A $(MBEDTLS_PATH) 2>/dev/null)" ]; then\
-    echo "Git submodules for MCUboot exist. Skipping this step...";\
-    else\
-    echo "Initializing Git Submodules for MCUboot";\
-    cd libs/mcuboot;git submodule update --init --recursive;\
-fi;\
-rm -f ./source/memorymap.c;\
-rm -f ./source/memorymap.h;\
-rm -f ./memorymap.mk;\
-$(MAKE) generate_flashmap_cm0p;\
-$(MAKE) gen_cy_si_key_source_file;
-#$(MAKE) gen_key_ecc256; 
-#$(MAKE) gen_key_rsa2k;
-
-# Custom pre-build commands to run.
-PREBUILD=$(PREBUILD_VAR)
+project_prebuild: gen_cy_si_key_source_file
+#project_prebuild: gen_key_ecc256
+#project_prebuild: gen_key_rsa2k
 
 # Custom post-build commands to run.
 ifeq ($(USE_SECURE_MODE_FOR_MCUBOOT), 1)
-	POSTBUILD=$(CY_PYTHON_PATH) -m cysecuretools -t $(PLATFORM) sign-cysaf -i build/$(TARGET)/$(CONFIG)/$(APPNAME).elf --key-path ../keys/$(SECURE_MODE_KEY_FILE).pem --output build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf;\
-	$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy -O ihex build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex;\
-	$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf -S -O binary build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin --remove-section .cy_sflash_user_data --remove-section .cy_toc_part2;\
-	mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME).elf;\
-	mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex build/$(TARGET)/$(CONFIG)/$(APPNAME).hex;\
-	mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin build/$(TARGET)/$(CONFIG)/$(APPNAME).bin
+POSTBUILD=$(CY_PYTHON_PATH) -m cysecuretools -t $(PLATFORM) sign-cysaf -i build/$(TARGET)/$(CONFIG)/$(APPNAME).elf --key-path ../keys/$(SECURE_MODE_KEY_FILE).pem --output build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf;\
+$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy -O ihex build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex;\
+$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf -S -O binary build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin --remove-section .cy_sflash_user_data --remove-section .cy_toc_part2;\
+mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME).elf;\
+mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex build/$(TARGET)/$(CONFIG)/$(APPNAME).hex;\
+mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin build/$(TARGET)/$(CONFIG)/$(APPNAME).bin
 endif
 
 ################################################################################

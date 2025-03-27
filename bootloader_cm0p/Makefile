@@ -7,7 +7,7 @@
 #
 ################################################################################
 # \copyright
-# Copyright 2023-2024, Cypress Semiconductor Corporation (an Infineon company)
+# Copyright 2023-2025, Cypress Semiconductor Corporation (an Infineon company)
 # SPDX-License-Identifier: Apache-2.0
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -248,11 +248,13 @@ project_prebuild: gen_cy_si_key_source_file
 #project_prebuild: gen_key_ecc256
 #project_prebuild: gen_key_rsa2k
 
+CY_ELF_TO_HEX_TOOL=$(MTB_TOOLCHAIN_GCC_ARM__BASE_DIR)/bin/arm-none-eabi-objcopy
+
 # Custom post-build commands to run.
 ifeq ($(USE_SECURE_MODE_FOR_MCUBOOT), 1)
 POSTBUILD=$(CY_PYTHON_PATH) -m cysecuretools -t $(PLATFORM) sign-cysaf -i build/$(TARGET)/$(CONFIG)/$(APPNAME).elf --key-path ../keys/$(SECURE_MODE_KEY_FILE).pem --output build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf;\
-$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy -O ihex build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex;\
-$(CY_TOOLS_DIR)/gcc/bin/arm-none-eabi-objcopy build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf -S -O binary build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin --remove-section .cy_sflash_user_data --remove-section .cy_toc_part2;\
+$(CY_ELF_TO_HEX_TOOL) -O ihex build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex;\
+$(CY_ELF_TO_HEX_TOOL) build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf -S -O binary build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin --remove-section .cy_sflash_user_data --remove-section .cy_toc_part2;\
 mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.elf build/$(TARGET)/$(CONFIG)/$(APPNAME).elf;\
 mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.hex build/$(TARGET)/$(CONFIG)/$(APPNAME).hex;\
 mv -f build/$(TARGET)/$(CONFIG)/$(APPNAME)_secure.bin build/$(TARGET)/$(CONFIG)/$(APPNAME).bin
